@@ -1,0 +1,6 @@
+{
+  "name": "LLM sebagai Hakim",
+  "description": "Aplikasi untuk mengevaluasi jawaban menggunakan LLM (Gemini API) berdasarkan kriteria yang ditentukan pengguna. Mendukung unggah CSV untuk pertanyaan dan jawaban, serta ekspor HTML untuk laporan.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
