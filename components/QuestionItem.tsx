@@ -131,7 +131,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ item, onEvaluate, onAdoptSu
 
           {item.evaluation.llmSuggestedAnswer && (
             <div className="mt-3">
-              <p className="text-sm font-medium text-slate-600 mb-1">Saran Jawaban dari LLM (untuk Pertanyaan Lengkap):</p>
+              {/* Heading removed as per user request */}
               <p className="text-slate-700 bg-sky-50 border border-sky-200 p-3 rounded-md whitespace-pre-wrap break-words text-sm">{item.evaluation.llmSuggestedAnswer}</p>
               <button
                 onClick={handleAdopt}
