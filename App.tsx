@@ -11,14 +11,14 @@ import EvaluationControls from './components/EvaluationControls';
 import QuestionItem from './components/QuestionItem';
 import ErrorModal from './components/ErrorModal';
 import ReportInfoModal from './components/ReportInfoModal';
-import BatchEvaluationModal from './components/BatchEvaluationModal'; // Baru
-import { TrashIcon } from './components/IconComponents';
+import BatchEvaluationModal from './components/BatchEvaluationModal';
+import { TrashIcon, CheckCircleIcon, XCircleIcon, RefreshIcon, ExclamationTriangleIcon } from './components/IconComponents';
 
 const App: React.FC = () => {
   const [questionsData, setQuestionsData] = useState<EvaluatedQuestion[]>([]);
   const [evaluationPrompt, setEvaluationPrompt] = useState<string>(DEFAULT_EVALUATION_PROMPT);
   const [globalError, setGlobalError] = useState<string | null>(null);
-  const [isEvaluatingAll, setIsEvaluatingAll] = useState<boolean>(false); // Tetap digunakan untuk overlay & status global
+  const [isEvaluatingAll, setIsEvaluatingAll] = useState<boolean>(false); 
   const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
 
   const [isCsvErrorModalOpen, setIsCsvErrorModalOpen] = useState<boolean>(false);
@@ -28,7 +28,7 @@ const App: React.FC = () => {
   const [totalToProcess, setTotalToProcess] = useState<number>(0);
 
   const [isReportInfoModalOpen, setIsReportInfoModalOpen] = useState<boolean>(false);
-  const [isBatchEvaluationModalOpen, setIsBatchEvaluationModalOpen] = useState<boolean>(false); // Baru
+  const [isBatchEvaluationModalOpen, setIsBatchEvaluationModalOpen] = useState<boolean>(false); 
 
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -130,27 +130,24 @@ const App: React.FC = () => {
     abortControllerRef.current = new AbortController();
     const currentAbortSignal = abortControllerRef.current.signal;
 
-    setIsEvaluatingAll(true); // Kontrol utama untuk overlay dan status global
+    setIsEvaluatingAll(true); 
     setIsPaused(false);
     isPausedRef.current = false;
     setGlobalError(null);
     setTotalToProcess(itemsToProcess.length);
     setProcessedCount(0);
 
-    // Tandai item yang akan diproses sebagai 'isEvaluating: true'
-    // dan item yang tidak punya jawaban LLM sebagai sudah selesai dengan error
     setQuestionsData(prev => prev.map(q => {
         if (itemsToProcess.some(itp => itp.id === q.id)) {
             return { ...q, isEvaluating: true, evaluation: undefined };
         }
-        // Untuk item yang tidak termasuk dalam itemsToProcess tapi mungkin perlu ditandai jika tidak ada jawaban LLM
         if ((!q.previousLlmAnswer || q.previousLlmAnswer.trim() === "") && !q.evaluation) {
            return { ...q, 
                     isEvaluating: false, 
                     evaluation: { isAppropriate: false, score: 0, justification: "Tidak ada 'Jawaban LLM' yang diberikan dalam file untuk dievaluasi.", error: "Jawaban LLM kosong"} 
                   };
         }
-        return q; // Biarkan item lain apa adanya
+        return q; 
     }));
 
 
@@ -176,7 +173,7 @@ const App: React.FC = () => {
             try {
                 const result = await evaluateAnswerWithLLM(
                     item.questionText,
-                    item.previousLlmAnswer, // Sudah difilter, pasti ada
+                    item.previousLlmAnswer, 
                     item.kbAnswer,
                     evaluationPrompt
                 );
@@ -191,6 +188,7 @@ const App: React.FC = () => {
             }
             currentProcessed++;
             setProcessedCount(currentProcessed);
+            await delay(100); // Small delay to prevent UI freeze and allow updates
         }
     } catch (loopError) {
         console.error("Kesalahan tak terduga dalam loop evaluasi semua:", loopError);
@@ -205,7 +203,7 @@ const App: React.FC = () => {
             if (foundResult) {
                 return { ...q, evaluation: foundResult.result, isEvaluating: false };
             }
-            if (q.isEvaluating) { // Jika dibatalkan sebelum diproses
+            if (q.isEvaluating) { 
                 return { ...q, isEvaluating: false, evaluation: q.evaluation || {isAppropriate: null, score: 0, justification: "Evaluasi dibatalkan sebelum diproses.", error: "Dibatalkan"} };
             }
             return q; 
@@ -220,7 +218,7 @@ const App: React.FC = () => {
         }
         abortControllerRef.current = null;
     }
-  }, [evaluationPrompt, apiKeyMissing]);
+  }, [evaluationPrompt, apiKeyMissing, globalError]);
 
   const handleStartBatchEvaluation = useCallback(async (
     mode: 'all' | 'range' | 'specific',
@@ -359,6 +357,34 @@ const App: React.FC = () => {
   const isAnyItemIndividuallyEvaluating = questionsData.some(q => q.isEvaluating && !isEvaluatingAll);
   const isAnyProcessing = isAnyItemIndividuallyEvaluating || isEvaluatingAll;
 
+  // Calculate summary counts
+  const evaluatedItems = questionsData.filter(q => q.evaluation);
+  const succeedCount = evaluatedItems.filter(q => q.evaluation!.isAppropriate === true).length;
+  const notAppropriateCount = evaluatedItems.filter(q => q.evaluation!.isAppropriate === false).length;
+  const errorCount = evaluatedItems.filter(
+    q => q.evaluation!.error && 
+         !q.evaluation!.justification.includes("Tidak ada 'Jawaban LLM'")
+  ).length;
+
+  const itemsWithActualErrorsForReevaluation = questionsData.filter(
+      q => q.evaluation?.error &&
+           q.previousLlmAnswer && q.previousLlmAnswer.trim() !== "" &&
+           !q.evaluation.justification.includes("Tidak ada 'Jawaban LLM'")
+  );
+  const canReEvaluateErrors = itemsWithActualErrorsForReevaluation.length > 0 && !isAnyProcessing;
+
+  const handleReEvaluateErrors = useCallback(async () => {
+      if (apiKeyMissing) {
+        setGlobalError(API_KEY_INFO);
+        return;
+      }
+      if (!canReEvaluateErrors) {
+        setGlobalError("Tidak ada item dengan kesalahan pemrosesan (dan memiliki jawaban LLM awal) untuk dievaluasi ulang.");
+        return;
+      }
+      await executeBulkEvaluation(itemsWithActualErrorsForReevaluation);
+  }, [apiKeyMissing, executeBulkEvaluation, itemsWithActualErrorsForReevaluation, canReEvaluateErrors]);
+
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 p-4 sm:p-8 transition-colors duration-300">
@@ -403,24 +429,57 @@ const App: React.FC = () => {
         <EvaluationControls
           evaluationPrompt={evaluationPrompt}
           setEvaluationPrompt={setEvaluationPrompt}
-          onTriggerBatchEvaluation={openBatchEvaluationModalHandler} // Diubah
+          onTriggerBatchEvaluation={openBatchEvaluationModalHandler}
           onExportHTML={openReportInfoModal}
           hasData={questionsData.length > 0}
           isEvaluatingAny={isAnyProcessing}
         />
 
         {questionsData.length > 0 && (
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold text-sky-700">Antrean Evaluasi ({questionsData.length} item)</h2>
-            <button
-              onClick={handleClearAllData}
-              disabled={isEvaluatingAll && isPaused} 
-              className="flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md text-sm shadow-sm disabled:bg-slate-400 disabled:text-slate-600 transition-colors duration-150"
-              title={isEvaluatingAll && isPaused ? "Harap Lanjutkan atau Batalkan proses evaluasi terlebih dahulu" : "Hapus semua data yang diunggah"}
-            >
-              <TrashIcon className="w-4 h-4 mr-1.5" />
-              Hapus Semua
-            </button>
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2 sm:gap-4">
+            <h2 className="text-2xl font-semibold text-sky-700 flex-shrink-0 mr-auto">Antrean Evaluasi ({questionsData.length} item)</h2>
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center sm:justify-end">
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600" aria-label="Ringkasan status evaluasi">
+                <span title={`Jumlah item dinilai Sesuai: ${succeedCount}`}>
+                  <CheckCircleIcon className="w-4 h-4 inline mr-1 text-green-500" aria-hidden="true"/>
+                  Sesuai: <span className="font-semibold text-green-600">{succeedCount}</span>
+                </span>
+                <span className="text-slate-300" aria-hidden="true">|</span>
+                <span title={`Jumlah item dinilai Tidak Sesuai: ${notAppropriateCount}`}>
+                  <XCircleIcon className="w-4 h-4 inline mr-1 text-red-500" aria-hidden="true"/>
+                  Tdk Sesuai: <span className="font-semibold text-red-600">{notAppropriateCount}</span>
+                </span>
+                <span className="text-slate-300" aria-hidden="true">|</span>
+                <span title={`Jumlah item gagal diproses (error LLM): ${errorCount}`}>
+                  <ExclamationTriangleIcon className="w-4 h-4 inline mr-1 text-amber-500" aria-hidden="true"/>
+                  Error: <span className="font-semibold text-amber-600">{errorCount}</span>
+                </span>
+              </div>
+
+              {errorCount > 0 && (
+                  <button
+                    onClick={handleReEvaluateErrors}
+                    disabled={!canReEvaluateErrors || isAnyProcessing}
+                    className="flex items-center px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-md text-xs sm:text-sm shadow-sm disabled:bg-slate-400 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors duration-150"
+                    title={!canReEvaluateErrors ? "Tidak ada item error yang valid untuk dievaluasi ulang" : `Evaluasi ulang ${errorCount} item yang mengalami error pemrosesan`}
+                    aria-label={`Evaluasi ulang ${errorCount} item error`}
+                  >
+                    <RefreshIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" aria-hidden="true"/>
+                    Ulang Error ({errorCount})
+                  </button>
+              )}
+              
+              <button
+                onClick={handleClearAllData}
+                disabled={isEvaluatingAll && isPaused} 
+                className="flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md text-sm shadow-sm disabled:bg-slate-400 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors duration-150"
+                title={isEvaluatingAll && isPaused ? "Harap Lanjutkan atau Batalkan proses evaluasi terlebih dahulu" : "Hapus semua data yang diunggah"}
+                aria-label="Hapus semua data dan hasil evaluasi"
+              >
+                <TrashIcon className="w-4 h-4 mr-1.5" aria-hidden="true"/>
+                Hapus Semua
+              </button>
+            </div>
           </div>
         )}
 
@@ -440,7 +499,7 @@ const App: React.FC = () => {
             />
           ))}
         </div>
-         {isEvaluatingAll && ( // Overlay masih dikontrol oleh isEvaluatingAll
+         {isEvaluatingAll && ( 
           <div className="fixed inset-0 bg-slate-900 bg-opacity-75 flex items-center justify-center z-50 p-4" aria-live="assertive" role="dialog" aria-modal="true">
             <div className="bg-white p-6 sm:p-8 rounded-lg shadow-xl flex flex-col items-center text-center w-full max-w-md">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500 mb-4" role="status">
