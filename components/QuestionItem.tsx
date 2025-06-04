@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { EvaluatedQuestion, EvaluationStatus } from '../types';
 import LoadingSpinner from './LoadingSpinner';
@@ -129,16 +130,16 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ item, onEvaluate, onAdoptSu
             <p className="text-slate-700 bg-slate-100 p-3 rounded-md whitespace-pre-wrap break-words text-sm">{item.evaluation.justification}</p>
           </div>
 
-          {item.evaluation.llmSuggestedAnswer && (
+          {/* Saran jawaban hanya ditampilkan jika jawaban LLM pengguna 'Sesuai' dan ada saran */}
+          {item.evaluation.llmSuggestedAnswer && item.evaluation.isAppropriate === true && (
             <div className="mt-3">
-              {/* Heading removed as per user request */}
               <p className="text-slate-700 bg-sky-50 border border-sky-200 p-3 rounded-md whitespace-pre-wrap break-words text-sm">{item.evaluation.llmSuggestedAnswer}</p>
               <button
                 onClick={handleAdopt}
                 className="mt-2 flex items-center px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-md text-xs shadow-sm transition-colors duration-150"
                 title="Gunakan saran ini sebagai Jawaban LLM Pengguna dan hapus evaluasi saat ini"
               >
-                <PlayIcon className="w-3.5 h-3.5 mr-1.5 transform rotate-0" /> {/* Using PlayIcon as a generic "use this" icon */}
+                <PlayIcon className="w-3.5 h-3.5 mr-1.5 transform rotate-0" />
                 Gunakan Saran Ini
               </button>
             </div>
