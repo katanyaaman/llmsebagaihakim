@@ -57,10 +57,14 @@ const clearIconSvg = `
   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500 hover:text-slate-700 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>`;
-const downloadIconSmallSvg = `
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-  </svg>`;
+
+// Updated icon to a circular download icon as per user image
+const cuteCsvTableDownloadIconSvg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5">
+  <circle cx="12" cy="12" r="11" fill="#BAE6FD"/> <!-- Tailwind sky-200 for light blue circle -->
+  <path fill="#FFFFFF" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/> <!-- White download symbol -->
+</svg>
+`;
 
 
 export const generateHTMLReport = (
@@ -289,7 +293,7 @@ export const generateHTMLReport = (
       cursor: pointer;
       display: none; 
     }
-    .download-filtered-excel-btn {
+    .download-filtered-csv-btn { 
       background-color: #0ea5e9; /* sky-500 */
       color: #ffffff; /* white */
       border: none;
@@ -303,7 +307,11 @@ export const generateHTMLReport = (
       justify-content: center;
       transition: background-color 0.2s ease;
     }
-    .download-filtered-excel-btn:hover {
+    .download-filtered-csv-btn svg { /* Ensure SVG inside button scales if needed, though w-5 h-5 should handle it */
+        max-width: 100%;
+        max-height: 100%;
+    }
+    .download-filtered-csv-btn:hover { 
       background-color: #0284c7; /* sky-600 */
     }
     /* Responsive grid for filter panel */
@@ -314,13 +322,13 @@ export const generateHTMLReport = (
         .filter-group:nth-child(1) { grid-column: 1 / 3; } 
         .filter-group:nth-child(2) { grid-column: 1 / 2; } 
         .filter-group:nth-child(3) { grid-column: 2 / 3; } 
-        .download-filtered-excel-btn { grid-column: 1 / 3; justify-self: center; margin-top: 10px; width: calc(50% - 8px); } 
+        .download-filtered-csv-btn { grid-column: 1 / 3; justify-self: center; margin-top: 10px; width: calc(50% - 8px); } 
     }
     @media (max-width: 640px) { 
         .filter-controls-panel {
             grid-template-columns: 1fr; 
         }
-        .download-filtered-excel-btn {
+        .download-filtered-csv-btn { 
             justify-self: stretch; 
             width: 100%;
             margin-top: 8px;
@@ -359,7 +367,7 @@ export const generateHTMLReport = (
     td { font-size: 0.88em; }
     .content-cell {
       max-height: 180px; overflow-y: auto; white-space: pre-wrap;
-      word-break: break-word; padding: 8px; /* Increased padding slightly */
+      word-break: break-word; padding: 8px; 
       background-color: #f8fafc; /* slate-50 */
       border: 1px solid #e2e8f0; /* slate-200 */
       border-radius: 4px;
@@ -397,7 +405,7 @@ export const generateHTMLReport = (
 </head>
 <body>
   <div class="container">
-    <h1>Laporan Evaluasi HAKIM LLM</h1>
+    <h1>EVALUASI HAKIM LLM - Laporan Evaluasi</h1>
     <div class="report-meta">
       <p class="timestamp">Laporan Dihasilkan pada: ${new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'long' })}</p>
       <p><strong>Nama Tester:</strong> ${escapeHtml(testerName)}</p>
@@ -470,8 +478,8 @@ export const generateHTMLReport = (
           ${uniqueTopics.map(topic => `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`).join('')}
         </select>
       </div>
-      <button class="download-filtered-excel-btn" id="downloadFilteredExcelBtn" title="Download Filtered Data (Excel)" aria-label="Download data yang difilter sebagai Excel">
-        ${downloadIconSmallSvg}
+      <button class="download-filtered-csv-btn" id="downloadFilteredCsvBtn" title="Download Filtered Data (CSV)" aria-label="Download data yang difilter sebagai CSV">
+        ${cuteCsvTableDownloadIconSvg}
       </button>
     </div>
     
@@ -566,7 +574,7 @@ export const generateHTMLReport = (
     
     const tableHeadersJS = ${JSON.stringify(tableHeaders)};
 
-    document.getElementById('downloadFilteredExcelBtn').addEventListener('click', function() {
+    document.getElementById('downloadFilteredCsvBtn').addEventListener('click', function() { 
         let csvContent = tableHeadersJS.map(escapeCsvCell).join(',') + '\\r\\n';
         let hasVisibleRows = false;
         tableRows.forEach(row => {
@@ -611,7 +619,7 @@ export const generateHTMLReport = (
         } else {
             filenameParts.push('semua_difilter');
         }
-        const filename = filenameParts.join('_') + '.xlsx'; 
+        const filename = filenameParts.join('_') + '.csv'; 
 
         downloadFile(filename, csvContent, 'text/csv;charset=utf-8;');
     });

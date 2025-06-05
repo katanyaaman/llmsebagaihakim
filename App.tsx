@@ -418,7 +418,7 @@ const App: React.FC = () => {
       <div className="container mx-auto max-w-5xl">
         <header className="text-center mb-6 sm:mb-10 relative">
           <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-600 pt-8 sm:pt-4">
-            LLM sebagai Hakim
+            HAKIM LLM
           </h1>
           <p className="text-slate-600 mt-2 text-sm sm:text-base">
             Unggah pertanyaan dan jawaban (CSV/XLSX), tentukan kriteria evaluasi, dan biarkan LLM menilai "Jawaban LLM" Anda.
