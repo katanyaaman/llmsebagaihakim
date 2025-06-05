@@ -34,6 +34,8 @@ const App: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const isPausedRef = useRef(isPaused);
 
+  const [testStartTime, setTestStartTime] = useState<number | null>(null);
+
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
@@ -66,9 +68,15 @@ const App: React.FC = () => {
         setIsCsvErrorModalOpen(true);
         setGlobalError(`Tidak ada data valid yang ditemukan di file ${fileType.toUpperCase()}. Harap periksa format.`);
         setQuestionsData([]);
+        setTestStartTime(null); // Reset start time
         return;
       }
       setQuestionsData(parsedData.map(q => ({ ...q, isEvaluating: false })));
+      if (parsedData.length > 0) {
+        setTestStartTime(Date.now()); // Set start time
+      } else {
+        setTestStartTime(null); // Reset if somehow still no data after processing
+      }
       setGlobalError(null);
       setCsvErrorModalMessage(null);
       if (parsedData.length > 0) {
@@ -81,6 +89,7 @@ const App: React.FC = () => {
       setIsCsvErrorModalOpen(true);
       setGlobalError(null);
       setQuestionsData([]);
+      setTestStartTime(null); // Reset start time
     }
   }, []);
 
@@ -316,7 +325,24 @@ const App: React.FC = () => {
 
 
   const handleConfirmAndGenerateReport = useCallback((testerName: string, projectName: string) => {
-    const htmlContent = generateHTMLReport(questionsData, testerName, projectName);
+    const reportEndTime = Date.now();
+    const durationMs = testStartTime ? reportEndTime - testStartTime : 0;
+
+    const evaluatedItemsForReport = questionsData.filter(q => q.evaluation);
+    const succeedCountForReport = evaluatedItemsForReport.filter(q => q.evaluation!.isAppropriate === true).length;
+    const notAppropriateCountForReport = evaluatedItemsForReport.filter(q => q.evaluation!.isAppropriate === false).length;
+    const totalQuestionsForReport = questionsData.length;
+
+
+    const htmlContent = generateHTMLReport(
+        questionsData, 
+        testerName, 
+        projectName,
+        succeedCountForReport,
+        notAppropriateCountForReport,
+        totalQuestionsForReport, // Used for both Total Topics and Total Questions
+        durationMs
+    );
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -326,7 +352,7 @@ const App: React.FC = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
     setIsReportInfoModalOpen(false);
-  }, [questionsData]);
+  }, [questionsData, testStartTime]);
 
 
   const handleClearAllData = () => {
@@ -342,6 +368,7 @@ const App: React.FC = () => {
     setIsEvaluatingAll(false);
     setIsPaused(false);
     isPausedRef.current = false;
+    setTestStartTime(null); // Reset start time
   };
 
   const handleAdoptSuggestion = useCallback((itemId: string, suggestedAnswer: string) => {
@@ -357,7 +384,7 @@ const App: React.FC = () => {
   const isAnyItemIndividuallyEvaluating = questionsData.some(q => q.isEvaluating && !isEvaluatingAll);
   const isAnyProcessing = isAnyItemIndividuallyEvaluating || isEvaluatingAll;
 
-  // Calculate summary counts
+  // Calculate summary counts for UI display (not report, report has its own calculation)
   const evaluatedItems = questionsData.filter(q => q.evaluation);
   const succeedCount = evaluatedItems.filter(q => q.evaluation!.isAppropriate === true).length;
   const notAppropriateCount = evaluatedItems.filter(q => q.evaluation!.isAppropriate === false).length;
@@ -391,7 +418,7 @@ const App: React.FC = () => {
       <div className="container mx-auto max-w-5xl">
         <header className="text-center mb-6 sm:mb-10 relative">
           <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-600 pt-8 sm:pt-4">
-            HAKIM LLM
+            LLM sebagai Hakim
           </h1>
           <p className="text-slate-600 mt-2 text-sm sm:text-base">
             Unggah pertanyaan dan jawaban (CSV/XLSX), tentukan kriteria evaluasi, dan biarkan LLM menilai "Jawaban LLM" Anda.
