@@ -205,6 +205,19 @@ export const generateHTMLReport = (
     .summary-card.question::after { background-color: #10b981; } /* emerald-500 */
     .summary-card.duration::after { background-color: #f59e0b; } /* amber-500 */
 
+    /* Clickable summary cards */
+    .summary-card.success, .summary-card.failed {
+        cursor: pointer;
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    }
+    .summary-card.success:hover, .summary-card.failed:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+    }
+    .summary-card.success:hover { background-color: #f0fdf4; /* green-50 */ }
+    .summary-card.failed:hover { background-color: #fef2f2; /* red-50 */ }
+
+
     .card-header {
       font-size: 0.85em;
       color: #475569; /* slate-600 */
@@ -413,14 +426,14 @@ export const generateHTMLReport = (
     </div>
 
     <div class="summary-dashboard">
-      <div class="summary-card success">
+      <div class="summary-card success" id="summaryCardSuccess" title="Klik untuk memfilter status 'Sesuai'">
         <div class="card-header">Success</div>
         <div class="card-body">
           <span class="card-value">${succeedCount}</span>
           ${successIconSvg}
         </div>
       </div>
-      <div class="summary-card failed">
+      <div class="summary-card failed" id="summaryCardFailed" title="Klik untuk memfilter status 'Tidak Sesuai'">
         <div class="card-header">Failed</div>
         <div class="card-body">
           <span class="card-value">${notAppropriateCount}</span>
@@ -502,6 +515,9 @@ export const generateHTMLReport = (
     const tableBody = document.getElementById('evaluationReportTable').querySelector('tbody');
     const tableRows = Array.from(tableBody.querySelectorAll('tr'));
     const clearSearchBtn = document.getElementById('clearSearchBtn');
+    
+    const summaryCardSuccess = document.getElementById('summaryCardSuccess');
+    const summaryCardFailed = document.getElementById('summaryCardFailed');
 
     function filterTable() {
       const searchTerm = searchInput.value.toLowerCase().trim();
@@ -541,8 +557,22 @@ export const generateHTMLReport = (
             filterTable(); 
         });
     }
+
+    if (summaryCardSuccess) {
+      summaryCardSuccess.addEventListener('click', () => {
+        statusFilter.value = "Sesuai";
+        filterTable();
+      });
+    }
+
+    if (summaryCardFailed) {
+      summaryCardFailed.addEventListener('click', () => {
+        statusFilter.value = "Tidak Sesuai";
+        filterTable();
+      });
+    }
     
-    filterTable();
+    filterTable(); // Initial call
 
 
     function escapeCsvCell(cellData) {
